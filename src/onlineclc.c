@@ -243,6 +243,9 @@ static void dump_build_log(FILE *out, cl_program program, cl_device_id device)
     build_log[len - 1] = '\0';
 
     fputs(build_log, out);
+    /* Add a trailing newline if required */
+    if (len >= 2 && build_log[len - 2] != '\n')
+        fputs("\n", out);
     free(build_log);
 }
 
@@ -416,7 +419,7 @@ static void process_options(compiler_options *options, int argc, const char * co
     }
 }
 
-static void write_program(const char *output_filename, cl_program program, cl_device_id device)
+static void write_program(const char *output_filename, cl_program program)
 {
     cl_int status;
     cl_uint num_devices;
@@ -468,7 +471,7 @@ int main(int argc, const char * const *argv)
     s.program = create_program(s.ctx, s.device, options.source_filename, options.options);
     dump_build_log(stderr, s.program, s.device);
     if (options.output_filename != NULL)
-        write_program(options.output_filename, s.program, s.device);
+        write_program(options.output_filename, s.program);
 
     clReleaseProgram(s.program);
     clReleaseContext(s.ctx);
