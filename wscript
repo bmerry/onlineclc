@@ -13,4 +13,14 @@ def configure(conf):
     conf.check_cc(header_name = 'CL/cl.h', use = 'OPENCL')
 
 def build(bld):
-    bld.recurse('src')
+    cflags = []
+    if bld.env['CC_NAME'] == 'gcc':
+        cflags = ['-std=c89', '-Wall', '-Wextra', '-O2']
+
+    bld(
+            features = 'c cprogram',
+            source = 'onlineclc.c',
+            target = 'onlineclc',
+            cflags = cflags,
+            use = 'OPENCL'
+       )

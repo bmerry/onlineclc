@@ -1,8 +1,0 @@
-def build(bld):
-    bld(
-            features = 'c cprogram',
-            source = 'onlineclc.c',
-            target = 'onlineclc',
-            cflags = '-std=c89 -Wall -g -Wextra',
-            use = 'OPENCL'
-       )
