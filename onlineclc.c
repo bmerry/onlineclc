@@ -44,18 +44,24 @@
 /* Holds state associated with a compilation */
 typedef struct
 {
-    /* Options to pass to clBuildProgram */
+    /* Options to pass to clBuildProgram - dynamically allocated */
     char *options;
     /* Current length of options (excluding NUL) */
     size_t len;
     /* Space allocated for options */
     size_t size;
 
-    /* -b command-line option, or NULL if not given */
+    /* -b command-line option, or NULL if not given
+     * A shallow copy from argv, do not free.
+     */
     const char *machine;
-    /* -o command-line option, or NULL if not given */
+    /* -o command-line option, or NULL if not given
+     * A shallow copy from argv, do not free.
+     */
     const char *output_filename;
-    /* Source filename from command line (cannot be NULL) */
+    /* Source filename from command line (cannot be NULL)
+     * A shallow copy from argv, do not free.
+     */
     const char *source_filename;
 } compiler_options;
 
@@ -547,7 +553,7 @@ int main(int argc, const char * const *argv)
 
     clReleaseProgram(s.program);
     clReleaseContext(s.ctx);
-    /* TODO: free memory held by options */
+    free(options.options);
 
     return 0;
 }
