@@ -15,7 +15,7 @@ def configure(conf):
 def build(bld):
     cflags = []
     if bld.env['CC_NAME'] == 'gcc':
-        cflags = ['-std=c89', '-Wall', '-Wextra', '-O2']
+        cflags = ['-std=c89', '-Wall', '-Wextra', '-O2', '-s']
 
     bld(
             features = 'c cprogram',
