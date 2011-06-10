@@ -33,13 +33,15 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdarg.h>
-#include <CL/cl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <assert.h>
+#include <ctype.h>
+
+#include <CL/cl.h>
 
 /* Holds state associated with a compilation */
 typedef struct
@@ -289,6 +291,101 @@ static void dump_build_log(FILE *out, cl_program program, cl_device_id device)
     free(build_log);
 }
 
+/* Checks whether c may appear unencoded in a string literal. According to C99,
+ * string literals may contain characters from the source character set except
+ * for double-quote, backslash or newline. To be safe, we also exclude '?'
+ * since it can form trigraphs.
+ *
+ * C99 does not specify the extended source character set, so we consider only
+ * the basic character set.
+ */
+static int safe_for_string_literal(char c)
+{
+    if (isalnum(c))
+        return 1;
+    else switch(c)
+    {
+    case '!':
+    case '#':
+    case '%':
+    case '&':
+    case '\'':
+    case '(':
+    case ')':
+    case '*':
+    case '+':
+    case ',':
+    case '-':
+    case '.':
+    case '/':
+    case ':':
+    case ';':
+    case '<':
+    case '=':
+    case '>':
+    case '[':
+    case ']':
+    case '^':
+    case '_':
+    case '{':
+    case '|':
+    case '}':
+    case '~':
+    case ' ':
+    case '\t':
+    case '\v':
+    case '\f':
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+/* Escapes a string so that it may appear between double quotes in OpenCL C.
+ * The return value is dynamically allocated, and must be freed by the caller.
+ *
+ * Unsafe characters (e.g. double quotes) are escaped using an octal escape.
+ * Hex escapes are avoided since they can gobble up following numbers.
+ */
+static char *escape_c_string(const char *str)
+{
+    const size_t src_len = strlen(str);
+    size_t i;
+    size_t dst_len = 0;
+    char *dst, *cur;
+
+    /* First pass: determine memory requirement */
+    for (i = 0; i < src_len; i++)
+    {
+        if (safe_for_string_literal(str[i]))
+            dst_len++;
+        else
+            dst_len += 4; /* for an octal escape */
+    }
+
+    dst = (char *) malloc(dst_len + 1);
+    if (dst == NULL)
+        die(1, "Failed to allocate %zu bytes for string", dst_len + 1);
+
+    /* Second pass: fill in the string */
+    cur = dst;
+    for (i = 0; i < src_len; i++)
+    {
+        if (safe_for_string_literal(str[i]))
+            *cur++ = str[i];
+        else
+        {
+            unsigned char value = (unsigned char) str[i];
+            *cur++ = '\\';
+            *cur++ = '0' + ((value / 64) % 8);
+            *cur++ = '0' + ((value / 8) % 8);
+            *cur++ = '0' + (value % 8);
+        }
+    }
+    *cur = '\0';
+    return dst;
+}
+
 /* This function does the heavy lifting. It loads the source, builds the
  * program and writes the build log. On failure, the process is terminated.
  *
@@ -303,6 +400,7 @@ static cl_program create_program(
     const char *options)
 {
     void *addr;              /* mmap address for the source file */
+    char *escaped_filename;  /* Soruce filename with quotes etc escaped */
     const char *srcs[4];     /* pointers to fragments of source */
     size_t src_lens[4];      /* lengths for source fragments */
     struct stat sb;          /* stat info on the file, to determine its size */
@@ -336,15 +434,16 @@ static cl_program create_program(
      * so that the build log can show the correct filename in error messages
      * (depending on the OpenCL implementation)
      */
-    srcs[0] = "#line 1 \"";        src_lens[0] = 0;
-    /* TODO: escape quotes in the filename */
-    srcs[1] = source_filename;     src_lens[1] = 0;
-    srcs[2] = "\"\n";              src_lens[2] = 0;
-    srcs[3] = (const char *) addr; src_lens[3] = len;
+    escaped_filename = escape_c_string(source_filename);
+    srcs[0] = "#line 1 \"";                         src_lens[0] = 0;
+    srcs[1] = escaped_filename;                     src_lens[1] = 0;
+    srcs[2] = "\"\n";                               src_lens[2] = 0;
+    srcs[3] = (const char *) addr;                  src_lens[3] = len;
 
     program = clCreateProgramWithSource(ctx, 4, srcs, src_lens, &status);
     if (status != CL_SUCCESS)
         die_cl(status, 1, "Failed to load source from `%s'", source_filename);
+    free(escaped_filename);
 
     /* If len == 0 then we didn't use mmap */
     if (len != 0)
