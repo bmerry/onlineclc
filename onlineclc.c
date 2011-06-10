@@ -41,17 +41,25 @@
 #include <errno.h>
 #include <assert.h>
 
+/* Holds state associated with a compilation */
 typedef struct
 {
+    /* Options to pass to clBuildProgram */
     char *options;
+    /* Current length of options (excluding NUL) */
     size_t len;
+    /* Space allocated for options */
     size_t size;
 
+    /* -b command-line option, or NULL if not given */
     const char *machine;
+    /* -o command-line option, or NULL if not given */
     const char *output_filename;
+    /* Source filename from command line (cannot be NULL) */
     const char *source_filename;
 } compiler_options;
 
+/* Assorted CL objects */
 typedef struct
 {
     cl_device_id device;
@@ -59,6 +67,7 @@ typedef struct
     cl_program program;
 } state;
 
+/* Prints msg (printf-style) and kills the process */
 static void die(int exitcode, const char *msg, ...)
 {
     va_list ap;
@@ -70,6 +79,7 @@ static void die(int exitcode, const char *msg, ...)
     exit(exitcode);
 }
 
+/* Prints msg (printf-style) followed by perror(), and kills the process */
 static void pdie(int exitcode, const char *msg, ...)
 {
     va_list ap;
@@ -82,6 +92,9 @@ static void pdie(int exitcode, const char *msg, ...)
     exit(exitcode);
 }
 
+/* Returns the string form of an OpenCL error code,
+ * as a static string.
+ */
 static const char *error_to_string(cl_int error)
 {
 #define ERROR_CASE(name) case name: return #name
@@ -104,6 +117,9 @@ static const char *error_to_string(cl_int error)
 #undef ERROR_CASE
 }
 
+/* Prints msg (printf-style) and an explanation of a CL error code, and
+ * kills the process.
+ */
 static void die_cl(cl_int status, int exitcode, const char *msg, ...)
 {
     va_list ap;
@@ -116,6 +132,10 @@ static void die_cl(cl_int status, int exitcode, const char *msg, ...)
     exit(exitcode);
 }
 
+/* Finds the device ID for a device with the given name. If device_name is
+ * NULL, matches any device. If the device could not be found, kills the
+ * process.
+ */
 static cl_device_id find_device(const char *device_name)
 {
     size_t size;
@@ -135,6 +155,7 @@ static cl_device_id find_device(const char *device_name)
     if (num_platforms == 0)
         die_cl(status, 1, "No OpenCL platforms found");
 
+    /* Get a list of platforms */
     size = sizeof(cl_platform_id) * num_platforms;
     platforms = (cl_platform_id *) malloc(size);
     if (platforms == NULL)
@@ -148,11 +169,15 @@ static cl_device_id find_device(const char *device_name)
         cl_device_id *devices;
         cl_uint num_devices, j;
 
-        /* Get number of available devices */
+        /* Get number of available devices for the platform */
         status = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &num_devices);
         if (status != CL_SUCCESS)
             die_cl(status, 1, "Failed to get device ID count");
         total_devices += num_devices;
+
+        /* Early-out to avoid allocating zero bytes, which doesn't always work
+         * on all platforms.
+         */
         if (num_devices == 0)
             continue;
 
@@ -168,6 +193,8 @@ static cl_device_id find_device(const char *device_name)
         {
             size_t name_len;
             char *name;
+
+            /* Determine space needed for the name */
             status = clGetDeviceInfo(devices[j], CL_DEVICE_NAME, 0, NULL, &name_len);
             if (status != CL_SUCCESS)
                 die_cl(status, 1, "Failed to query device name length");
@@ -207,6 +234,8 @@ static cl_device_id find_device(const char *device_name)
     return ans;
 }
 
+/* Create an OpenCL context for device, and kill the process on failure.
+ */
 static cl_context create_context(cl_device_id device)
 {
     cl_context ctx;
@@ -218,6 +247,9 @@ static cl_context create_context(cl_device_id device)
     return ctx;
 }
 
+/* Writes the build log to the output. Does not check for errors on the
+ * output stream.
+ */
 static void dump_build_log(FILE *out, cl_program program, cl_device_id device)
 {
     cl_int status;
@@ -227,6 +259,8 @@ static void dump_build_log(FILE *out, cl_program program, cl_device_id device)
     status = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &len);
     if (status != CL_SUCCESS)
         die_cl(status, 1, "Failed to get length of build log");
+
+    /* Early-out to avoid dealing with malloc(0) */
     if (len == 0)
         return;
 
@@ -249,19 +283,26 @@ static void dump_build_log(FILE *out, cl_program program, cl_device_id device)
     free(build_log);
 }
 
+/* This function does the heavy lifting. It loads the source, builds the
+ * program and writes the build log. On failure, the process is terminated.
+ *
+ * Currently the source file is loaded with mmap(), since that is easier to
+ * implement than streaming. However, it will prevent compiling from a pipe and
+ * is not very portable, so it should be replaced in future.
+ */
 static cl_program create_program(
     cl_context ctx,
     cl_device_id device,
     const char *source_filename,
     const char *options)
 {
-    void *addr;
-    const char *srcs[4];
-    size_t src_lens[4];
-    struct stat sb;
+    void *addr;              /* mmap address for the source file */
+    const char *srcs[4];     /* pointers to fragments of source */
+    size_t src_lens[4];      /* lengths for source fragments */
+    struct stat sb;          /* stat info on the file, to determine its size */
     cl_int status;
-    int fd;
-    size_t len;
+    int fd;                  /* file descriptor for the source file */
+    size_t len;              /* length of the source file */
     cl_program program;
 
     fd = open(source_filename, O_RDONLY);
@@ -284,6 +325,11 @@ static cl_program create_program(
             pdie(1, "Failed to map `%s'", source_filename);
     }
 
+    /* Inject a line of the form
+     * #line 1 "filename"
+     * so that the build log can show the correct filename in error messages
+     * (depending on the OpenCL implementation)
+     */
     srcs[0] = "#line 1 \"";        src_lens[0] = 0;
     /* TODO: escape quotes in the filename */
     srcs[1] = source_filename;     src_lens[1] = 0;
@@ -294,6 +340,7 @@ static cl_program create_program(
     if (status != CL_SUCCESS)
         die_cl(status, 1, "Failed to load source from `%s'", source_filename);
 
+    /* If len == 0 then we didn't use mmap */
     if (len != 0)
         munmap(addr, sb.st_size);
     close(fd);
@@ -314,6 +361,9 @@ static cl_program create_program(
     return program;
 }
 
+/* Print usage information and exit with exitcode.
+ * If message is not NULL, it is displayed first.
+ */
 static void usage(int exitcode, const char *message)
 {
     if (message != NULL)
@@ -333,6 +383,11 @@ static void usage(int exitcode, const char *message)
     exit(exitcode);
 }
 
+/* Determine whether a command-line option is expected to be followed by an
+ * argument, which should not be parsed as an option. This is necessarily
+ * approximate since there may be vendor-specific options, but it reduces the
+ * chance of accidentally processing an argument as an option.
+ */
 static int option_has_argument(const char *option)
 {
     return (0 == strcmp(option, "-I"))
@@ -341,9 +396,16 @@ static int option_has_argument(const char *option)
         || (0 == strcmp(option, "-o"));
 }
 
+/* Adds option to the compiler options, and appends a trailing space so that
+ * options will be space-separated. It will dynamically resize the memory if
+ * needed, and kill the process if that fails.
+ */
 static void append_compiler_option(compiler_options *options, const char *option)
 {
     size_t len = strlen(option);
+    /* options->len + len + 2 bytes are needed:
+     * options->len + len for options text, one for trailing space, one for NUL
+     */
     if (options->len + len + 1 >= options->size)
     {
         size_t new_size = 2 * options->size;
@@ -362,6 +424,9 @@ static void append_compiler_option(compiler_options *options, const char *option
     options->len++;
 }
 
+/* Parse the command-line options into a structure. The options structure
+ * does not need to be pre-initialized.
+ */
 static void process_options(compiler_options *options, int argc, const char * const *argv)
 {
     int i;
@@ -419,6 +484,10 @@ static void process_options(compiler_options *options, int argc, const char * co
     }
 }
 
+/* Extract the binary from program and write it to output_filename.
+ *
+ * This currently uses mmap(), so is not very portable.
+ */
 static void write_program(const char *output_filename, cl_program program)
 {
     cl_int status;
@@ -441,6 +510,9 @@ static void write_program(const char *output_filename, cl_program program)
     if (sizes[0] == 0)
         die(1, "No binary was produced by the compiler");
 
+    /* mmap() doesn't like it if we use O_WRONLY, since in some cases
+     * PROT_WRITE implies PROT_READ.
+     */
     fd = open(output_filename, O_RDWR | O_CREAT, 0666);
     if (fd < 0)
         pdie(1, "Could not open `%s'", output_filename);
@@ -475,6 +547,7 @@ int main(int argc, const char * const *argv)
 
     clReleaseProgram(s.program);
     clReleaseContext(s.ctx);
+    /* TODO: free memory held by options */
 
     return 0;
 }
