@@ -650,6 +650,7 @@ int main(int argc, const char * const *argv)
     if (options.output_filename != NULL)
         write_program(options.output_filename, s.program);
 
+    clUnloadCompiler();
     clReleaseProgram(s.program);
     clReleaseContext(s.ctx);
     free(options.options);
