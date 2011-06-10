@@ -1,4 +1,4 @@
-/*  onlineclc: Front-end to online OpenCL C compiler
+/*  OnlineCLC: Front-end to online OpenCL C compiler
  *  Copyright (C) 2011  Bruce Merry
  *
  *  This program is free software; you can redistribute it and/or modify

@@ -1,0 +1,58 @@
+INTRODUCTION
+
+    OnlineCLC is a command-line wrapper around the compiler provided by an
+    OpenCL implementation. It thus requires a working OpenCL library to run,
+    and the results will depend on the OpenCL implementation that is
+    provided.
+
+    Command-line options are passed through to the underlying OpenCL compiler,
+    except for the following:
+
+       -b machine          Specify device to use
+       -o outfile          Specify output file
+       --help              Show usage
+
+    If no output file is specified, the compilation serves only to see the
+    build log and no binary file is saved.
+
+    OnlineCLC currently requires a POSIX 2001 system.
+
+INSTALLATION
+
+    OnlineCLC is distributed as source. Firstly, a build must be configured by
+    running
+
+        $ ./waf configure [--cl-headers=/path/to/opencl/headers]
+
+    The CL headers path is the directory containing CL/cl.h. Run ./waf --help
+    to see additional options, particularly with regards to the installation
+    path.
+
+    To build OnlineCLC, run
+
+        $ ./waf build
+
+    To install it once built, run (as root)
+
+        # ./waf install
+
+LIMITATIONS
+
+    Currently mmap(2) is used to access the source and output file, so they
+    cannot be piped.
+
+LICENSE
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
