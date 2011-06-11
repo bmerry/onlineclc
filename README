@@ -1,7 +1,11 @@
 INTRODUCTION
 
     OnlineCLC is a command-line wrapper around the compiler provided by an
-    OpenCL implementation. It thus requires a working OpenCL library to run,
+    OpenCL implementation. It can be used to verify the correctness of code
+    from the command line, save binary programs produced by the compiler, and
+    view the build log to see warnings or performance hints from the compiler.
+
+    It thus requires a working OpenCL library to run,
     and the results will depend on the OpenCL implementation that is
     provided.
 
