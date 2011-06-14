@@ -16,13 +16,26 @@ def configure(conf):
 
 def build(bld):
     cflags = []
+    test_cflags = []
     if bld.env['CC_NAME'] == 'gcc':
         cflags = ['-std=c89', '-Wall', '-Wextra', '-O2', '-s']
+        test_cflags = ['-std=c89', '-Wall', '-Wextra', '-g']
 
     bld(
             features = 'c cprogram',
             source = 'onlineclc.c',
             target = 'onlineclc',
             cflags = cflags,
+            defines = ['ONLINECLC_CUNIT=0'],
             use = 'OPENCL'
        )
+
+    bld(
+            features = 'c cprogram',
+            source = 'onlineclc.c',
+            target = 'onlineclc-test',
+            cflags = test_cflags,
+            defines = ['ONLINECLC_CUNIT=1'],
+            use = 'OPENCL',
+            lib = 'cunit'
+        )

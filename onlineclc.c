@@ -635,6 +635,7 @@ static void write_program(const char *output_filename, cl_program program)
     close(fd);
 }
 
+#if !ONLINECLC_CUNIT
 int main(int argc, const char * const *argv)
 {
     compiler_options options;
@@ -655,3 +656,69 @@ int main(int argc, const char * const *argv)
 
     return 0;
 }
+#endif /* !ONLINECLC_CUNIT */
+
+#if ONLINECLC_CUNIT
+
+#include <CUnit/CUnit.h>
+#include <CUnit/Basic.h>
+
+static void test_escape_c_string(const char *orig, const char *expected)
+{
+    char *escaped = escape_c_string(orig);
+    CU_ASSERT_STRING_EQUAL(escaped, expected);
+    free(escaped);
+}
+
+static void test_escape_c_string_empty(void)
+{
+    test_escape_c_string("", "");
+}
+
+static void test_escape_c_string_simple(void)
+{
+    test_escape_c_string("hello world", "hello world");
+}
+
+static void test_escape_c_string_quotes(void)
+{
+    test_escape_c_string("\"quotes\"", "\\042quotes\\042");
+}
+
+static void test_escape_c_string_trigraph(void)
+{
+    test_escape_c_string("trigraph\?\?/", "trigraph\\077\\077/");
+}
+
+static void test_escape_c_string_backslash(void)
+{
+    test_escape_c_string("backslash\\", "backslash\\134");
+}
+
+int main(int argc, const char * const *argv)
+{
+    static CU_TestInfo escape_c_string_tests[] =
+    {
+        { "empty", test_escape_c_string_empty },
+        { "simple", test_escape_c_string_simple },
+        { "quotes", test_escape_c_string_quotes },
+        { "trigraph", test_escape_c_string_trigraph },
+        { "backslash", test_escape_c_string_backslash },
+        CU_TEST_INFO_NULL
+    };
+    static CU_SuiteInfo suites[] =
+    {
+        { "escape_c_string", NULL, NULL, escape_c_string_tests },
+        CU_SUITE_INFO_NULL
+    };
+
+    CU_set_error_action(CUEA_ABORT);
+    CU_initialize_registry();
+    CU_register_suites(suites);
+    CU_basic_set_mode(CU_BRM_VERBOSE);
+    CU_basic_run_tests();
+    CU_cleanup_registry();
+    return 0;
+}
+
+#endif /* ONLINECLC_CUNIT */
