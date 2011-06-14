@@ -697,6 +697,7 @@ static void test_escape_c_string_backslash(void)
 
 int main(int argc, const char * const *argv)
 {
+    int ret;
     static CU_TestInfo escape_c_string_tests[] =
     {
         { "empty", test_escape_c_string_empty },
@@ -717,8 +718,9 @@ int main(int argc, const char * const *argv)
     CU_register_suites(suites);
     CU_basic_set_mode(CU_BRM_VERBOSE);
     CU_basic_run_tests();
+    ret = CU_get_number_of_failure_records() > 0 ? 1 : 0;
     CU_cleanup_registry();
-    return 0;
+    return ret;
 }
 
 #endif /* ONLINECLC_CUNIT */
