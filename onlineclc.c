@@ -509,7 +509,7 @@ static void append_compiler_option(compiler_options *options, const char *option
     /* options->len + len + 2 bytes are needed:
      * options->len + len for options text, one for trailing space, one for NUL
      */
-    if (options->len + len + 1 >= options->size)
+    while (options->len + len + 1 >= options->size)
     {
         size_t new_size = 2 * options->size;
         if (new_size == 0)
