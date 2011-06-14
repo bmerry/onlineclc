@@ -100,6 +100,14 @@ static void pdie(int exitcode, const char *msg, ...)
     exit(exitcode);
 }
 
+static void *onlineclc_malloc(size_t size, const char *purpose)
+{
+    void *ptr = malloc(size);
+    if (ptr == NULL)
+        die(1, "Failed to allocate %zu bytes for %s", size, purpose);
+    return ptr;
+}
+
 /* Returns the string form of an OpenCL error code,
  * as a static string.
  */
@@ -165,9 +173,7 @@ static cl_device_id find_device(const char *device_name)
 
     /* Get a list of platforms */
     size = sizeof(cl_platform_id) * num_platforms;
-    platforms = (cl_platform_id *) malloc(size);
-    if (platforms == NULL)
-        die(1, "Failed to allocate %zu bytes for platform IDs", size);
+    platforms = (cl_platform_id *) onlineclc_malloc(size, "platform IDs");
     status = clGetPlatformIDs(num_platforms, platforms, NULL);
     if (status != CL_SUCCESS)
         die_cl(status, 1, "Failed to get platform IDs");
@@ -190,9 +196,7 @@ static cl_device_id find_device(const char *device_name)
             continue;
 
         size = sizeof(cl_device_id) * num_devices;
-        devices = (cl_device_id *) malloc(size);
-        if (devices == NULL)
-            die(1, "Failed to allocate %zu bytes for device IDs", size);
+        devices = (cl_device_id *) onlineclc_malloc(size, "device IDs");
         status = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, num_devices, devices, NULL);
         if (status != CL_SUCCESS)
             die_cl(status, 1, "Failed to get device IDs");
@@ -206,9 +210,7 @@ static cl_device_id find_device(const char *device_name)
             status = clGetDeviceInfo(devices[j], CL_DEVICE_NAME, 0, NULL, &name_len);
             if (status != CL_SUCCESS)
                 die_cl(status, 1, "Failed to query device name length");
-            name = (char *) malloc(name_len);
-            if (name == NULL)
-                die(1, "Failed to allocate %zu bytes for device name", name_len);
+            name = (char *) onlineclc_malloc(name_len * sizeof(char), "device names");
             status = clGetDeviceInfo(devices[j], CL_DEVICE_NAME, name_len, name, NULL);
             if (status != CL_SUCCESS)
                 die_cl(status, 1, "Failed to query device name");
@@ -272,9 +274,7 @@ static void dump_build_log(FILE *out, cl_program program, cl_device_id device)
     if (len == 0)
         return;
 
-    build_log = (char *) malloc(len * sizeof(char));
-    if (build_log == NULL)
-        die(1, "Failed to allocate %zu bytes for the build log", len);
+    build_log = (char *) onlineclc_malloc(len * sizeof(char), "the build log");
 
     status = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, len, build_log, NULL);
     if (status != CL_SUCCESS)
@@ -363,9 +363,7 @@ static char *escape_c_string(const char *str)
             dst_len += 4; /* for an octal escape */
     }
 
-    dst = (char *) malloc(dst_len + 1);
-    if (dst == NULL)
-        die(1, "Failed to allocate %zu bytes for string", dst_len + 1);
+    dst = (char *) onlineclc_malloc((dst_len + 1) * sizeof(char), "string");
 
     /* Second pass: fill in the string */
     cur = dst;
