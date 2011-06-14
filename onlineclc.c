@@ -479,11 +479,11 @@ static void usage(int exitcode, const char *message)
           "\n"
           "   -b machine          Specify device to use\n"
           "   -o outfile          Specify output file\n"
-          "   --help              Show usage\n"
+          "   -h | --help         Show usage\n"
           "\n"
           "Other options are passed to the online compiler\n"
           "NB: exactly one source file must be given, as the last argument.\n",
-          stderr
+          message != NULL ? stderr : stdout
          );
     exit(exitcode);
 }
@@ -545,6 +545,10 @@ static void process_options(compiler_options *options, int argc, const char * co
     options->output_filename = NULL;
     options->source_filename = NULL;
 
+    /* First look for --help, and show help, even if there is no source file. */
+    for (i = 1; i < argc; i++)
+        if (0 == strcmp(argv[i], "-h") || 0 == strcmp(argv[i], "--help"))
+            usage(0, NULL);
     for (i = 1; i < argc - 1; i++)
     {
         if (0 == strcmp(argv[i], "-b"))
@@ -564,10 +568,6 @@ static void process_options(compiler_options *options, int argc, const char * co
                 die(2, "-o option specified twice");
             options->output_filename = argv[i + 1];
             i++;
-        }
-        else if (0 == strcmp(argv[i], "--help"))
-        {
-            usage(0, NULL);
         }
         else
         {

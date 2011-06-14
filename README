@@ -14,7 +14,7 @@ INTRODUCTION
 
        -b machine          Specify device to use
        -o outfile          Specify output file
-       --help              Show usage
+       -h | --help         Show usage
 
     If no output file is specified, the compilation serves only to see the
     build log and no binary file is saved.
