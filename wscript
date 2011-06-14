@@ -13,29 +13,46 @@ def configure(conf):
     if conf.options.cl_headers:
         conf.env.append_value('INCLUDES_OPENCL', [conf.options.cl_headers])
     conf.check_cc(header_name = 'CL/cl.h', use = 'OPENCL')
+    conf.check_cc(header_name = 'CUnit/CUnit.h', function = 'CU_initialize_registry', lib = 'cunit',
+            uselib_store = 'CUNIT', mandatory = False)
 
 def build(bld):
-    cflags = []
-    test_cflags = []
+    do_cov = False
     if bld.env['CC_NAME'] == 'gcc':
-        cflags = ['-std=c89', '-Wall', '-Wextra', '-O2', '-s']
-        test_cflags = ['-std=c89', '-Wall', '-Wextra', '-g']
+        if not bld.env['CFLAGS']:
+            bld.env['CFLAGS'] = ['-std=c89', '-Wall', '-Wextra']
+        bld.env['CFLAGS_OPT'] = ['-O2']
+        bld.env['LINKFLAGS_OPT'] = ['-O2', '-s']
+
+        bld.env['CFLAGS_TEST'] = ['-Wno-unused', '-g']
+
+        bld.env['CFLAGS_COV'] = ['-fprofile-arcs', '-ftest-coverage']
+        bld.env['LINKFLAGS_COV'] = ['-fprofile-arcs', '-ftest-coverage']
+        do_cov = True
 
     bld(
             features = 'c cprogram',
             source = 'onlineclc.c',
             target = 'onlineclc',
-            cflags = cflags,
             defines = ['ONLINECLC_CUNIT=0'],
-            use = 'OPENCL'
+            use = ['OPENCL', 'OPT']
        )
 
-    bld(
-            features = 'c cprogram',
-            source = 'onlineclc.c',
-            target = 'onlineclc-test',
-            cflags = test_cflags,
-            defines = ['ONLINECLC_CUNIT=1'],
-            use = 'OPENCL',
-            lib = 'cunit'
-        )
+    # TODO: make the gcov output files a dependency
+    if do_cov:
+        bld(
+                features = 'c cprogram',
+                source = 'onlineclc.c',
+                target = 'onlineclc-cov',
+                defines = ['ONLINECLC_CUNIT=0'],
+                use = ['OPENCL', 'COV']
+            )
+
+    if bld.env['HAVE_CUNIT_CUNIT_H']:
+        bld(
+                features = 'c cprogram',
+                source = 'onlineclc.c',
+                target = 'onlineclc-test',
+                defines = ['ONLINECLC_CUNIT=1'],
+                use = ['OPENCL', 'CUNIT', 'TEST']
+            )
