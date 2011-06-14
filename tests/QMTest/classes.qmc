@@ -1,7 +1,0 @@
-<?xml version="1.0" ?>
-<!DOCTYPE class-directory
-  PUBLIC '-//QM/2.4.1/Class-Directory//EN'
-  'http://www.codesourcery.com/qm/dtds/2.4.1/-//qm/2.4.1/class-directory//en.dtd'>
-<class-directory>
- <class kind="test" name="command_regex.ExecTest"/>
-</class-directory>

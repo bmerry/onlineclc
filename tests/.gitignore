@@ -1,0 +1,5 @@
+results.qmr
+*.pyc
+*.qms
+QMTest/*.qmc
+QMTest/configuration
