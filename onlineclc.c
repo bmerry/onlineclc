@@ -167,7 +167,7 @@ static cl_device_id find_device(const char *device_name)
     size = sizeof(cl_platform_id) * num_platforms;
     platforms = (cl_platform_id *) malloc(size);
     if (platforms == NULL)
-        die(1, "Could not allocate %zu bytes for platform IDs", size);
+        die(1, "Failed to allocate %zu bytes for platform IDs", size);
     status = clGetPlatformIDs(num_platforms, platforms, NULL);
     if (status != CL_SUCCESS)
         die_cl(status, 1, "Failed to get platform IDs");
@@ -192,7 +192,7 @@ static cl_device_id find_device(const char *device_name)
         size = sizeof(cl_device_id) * num_devices;
         devices = (cl_device_id *) malloc(size);
         if (devices == NULL)
-            die(1, "Could not allocate %zu bytes for device IDs", size);
+            die(1, "Failed to allocate %zu bytes for device IDs", size);
         status = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, num_devices, devices, NULL);
         if (status != CL_SUCCESS)
             die_cl(status, 1, "Failed to get device IDs");
@@ -208,7 +208,7 @@ static cl_device_id find_device(const char *device_name)
                 die_cl(status, 1, "Failed to query device name length");
             name = (char *) malloc(name_len);
             if (name == NULL)
-                die(1, "Could not allocate %zu bytes for device name", name_len);
+                die(1, "Failed to allocate %zu bytes for device name", name_len);
             status = clGetDeviceInfo(devices[j], CL_DEVICE_NAME, name_len, name, NULL);
             if (status != CL_SUCCESS)
                 die_cl(status, 1, "Failed to query device name");
@@ -620,14 +620,14 @@ static void write_program(const char *output_filename, cl_program program)
      */
     fd = open(output_filename, O_RDWR | O_CREAT, 0666);
     if (fd < 0)
-        pdie(1, "Could not open `%s'", output_filename);
+        pdie(1, "Failed to open `%s'", output_filename);
 
     if (ftruncate(fd, sizes[0]) != 0)
-        pdie(1, "Could not resize `%s' to %zu bytes", output_filename, sizes[0]);
+        pdie(1, "Failed to resize `%s' to %zu bytes", output_filename, sizes[0]);
 
     binaries[0] = (unsigned char *) mmap(NULL, sizes[0], PROT_WRITE, MAP_SHARED, fd, 0);
     if (binaries[0] == MAP_FAILED)
-        pdie(1, "Could not map `%s'", output_filename);
+        pdie(1, "Failed to map `%s'", output_filename);
 
     status = clGetProgramInfo(program, CL_PROGRAM_BINARIES, sizeof(unsigned char *), binaries, NULL);
     if (status != CL_SUCCESS)
