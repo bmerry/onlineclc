@@ -93,6 +93,12 @@ qmtest create -i compile.overwrite_output \
     -a command="$PROGRAM -o \$QMV_ONLINECLC_TMP_DIR/test-overwrite_output.out empty.cl && $PROGRAM -o \$QMV_ONLINECLC_TMP_DIR/test-overwrite_output.out empty.cl" \
     -a resources="['tmpdir']" \
     test command_regex.ShellCommandTest
+qmtest create -i compile.bad_option \
+    -a program="$PROGRAM" \
+    -a exit_code=1 \
+    -a stderr="$STDERR"'.*^Failed to build \`empty.cl'\'': Error code -43 \(CL_INVALID_BUILD_OPTIONS\)' \
+    -a arguments="['-bad-cmdline-option', 'empty.cl']" \
+    test command_regex.ExecTest
 
 # Doesn't pass because stdout is a pipe
 #qmtest create -i compile.log_stdout \
