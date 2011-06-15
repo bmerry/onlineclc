@@ -1,8 +1,6 @@
 #!/bin/sh
 
 # TODO:
-# - check that -o produces an output file
-# - check that -o copes with an existing output file
 # - check that -o /dev/stdout doesn't do anything too nasty
 # - check that -I and -D work
 # - fault injection on malloc()
@@ -10,11 +8,17 @@
 
 set -e
 rm -f QMTest/configuration QMTest/*.pyc QMTest/*.qm*
-rm -rf *.qms
+rm -rf *.qms *.qma
 rm -f ../build/*.gcda
 qmtest create-tdb
 qmtest register test command_regex.ExecTest
+qmtest register test command_regex.ShellCommandTest
 PROGRAM=../build/onlineclc-cov
+STDERR='(?:Warning: multiple devices match, using the first one\n)?'
+
+qmtest create -i tmpdir \
+    -a dir_path_property=ONLINECLC_TMP_DIR \
+    resource temporary.TempDirectoryResource
 
 qmtest create -i cunit.all \
     -a program=../build/onlineclc-test \
@@ -42,26 +46,29 @@ qmtest create -i cmdparse.bad_device \
     test command.ExecTest
 qmtest create -i cmdparse.long \
     -a program="$PROGRAM" \
+    -a stderr="$STDERR" \
     -a exit_code=0 \
     -a arguments="['-D', 'a_very_long_symbol_to_test_that_the_dynamic_allocation_of_the_command_line_works_correctly_even_when_multiple_allocations_are_required=1', 'empty.cl']" \
-    test command.ExecTest
+    test command_regex.ExecTest
 
 qmtest create -i compile.empty \
     -a program="$PROGRAM" \
+    -a stderr="$STDERR" \
     -a exit_code=0 \
     -a arguments="['empty.cl']" \
-    test command.ExecTest
+    test command_regex.ExecTest
 qmtest create -i compile.quotes \
     -a program="$PROGRAM" \
+    -a stderr="$STDERR" \
     -a exit_code=0 \
     -a arguments="['\"quotes\".cl']" \
-    test command.ExecTest
+    test command_regex.ExecTest
 qmtest create -i compile.nosource \
     -a program="$PROGRAM" \
-    -a stderr="Failed to open \`nosource.cl': No such file or directory" \
+    -a stderr="$STDERR""Failed to open \`nosource.cl': No such file or directory" \
     -a exit_code=1 \
     -a arguments="['nosource.cl']" \
-    test command.ExecTest
+    test command_regex.ExecTest
 qmtest create -i compile.invalid \
     -a program="$PROGRAM" \
     -a stderr='.+' \
@@ -70,16 +77,22 @@ qmtest create -i compile.invalid \
     test command_regex.ExecTest
 qmtest create -i compile.invalid_output \
     -a program="$PROGRAM" \
-    -a stderr="Failed to open \`bad/bad.out': No such file or directory" \
+    -a stderr="$STDERR""Failed to open \`bad/bad.out': No such file or directory" \
     -a exit_code=1 \
     -a arguments="['-o', 'bad/bad.out', 'empty.cl']" \
-    test command.ExecTest
-# TODO: set up a temp directory resource to clean up the file afterwards
+    test command_regex.ExecTest
 qmtest create -i compile.write_output \
-    -a program="$PROGRAM" \
     -a exit_code=0 \
-    -a arguments="['-o', '../build/test.out', 'empty.cl']" \
-    test command.ExecTest
+    -a stderr="$STDERR" \
+    -a command="$PROGRAM -o \$QMV_ONLINECLC_TMP_DIR/test-write_output.out empty.cl && test -f \$QMV_ONLINECLC_TMP_DIR/test-write_output.out" \
+    -a resources="['tmpdir']" \
+    test command_regex.ShellCommandTest
+qmtest create -i compile.overwrite_output \
+    -a exit_code=0 \
+    -a stderr="$STDERR$STDERR" \
+    -a command="$PROGRAM -o \$QMV_ONLINECLC_TMP_DIR/test-overwrite_output.out empty.cl && $PROGRAM -o \$QMV_ONLINECLC_TMP_DIR/test-overwrite_output.out empty.cl" \
+    -a resources="['tmpdir']" \
+    test command_regex.ShellCommandTest
 
 # Doesn't pass because stdout is a pipe
 #qmtest create -i compile.log_stdout \
