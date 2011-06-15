@@ -1,3 +1,6 @@
+from waflib.Build import BuildContext
+from waflib.Task import TaskBase
+
 top = '.'
 out = 'build'
 
@@ -15,6 +18,7 @@ def configure(conf):
     conf.check_cc(header_name = 'CL/cl.h', use = 'OPENCL')
     conf.check_cc(header_name = 'CUnit/CUnit.h', function = 'CU_initialize_registry', lib = 'cunit',
             uselib_store = 'CUNIT', mandatory = False)
+    conf.find_program('qmtest', var = 'QMTEST', mandatory = False)
 
 def build(bld):
     do_cov = False
@@ -56,3 +60,23 @@ def build(bld):
                 defines = ['ONLINECLC_CUNIT=1'],
                 use = ['OPENCL', 'CUNIT', 'TEST']
             )
+
+def test(bld):
+    build(bld)
+    if not bld.env['HAVE_CUNIT_CUNIT_H']:
+        bld.fatal("Testing cannot be done without cunit")
+    if not bld.env['QMTEST']:
+        bld.fatal("Testing cannot be done without qmtest")
+    bld(rule = '../tests/create_tests.sh', cwd = bld.bldnode.abspath(),
+            target = ['QMTest/configuration'],
+            source = ['tests/create_tests.sh'] +
+                bld.path.ant_glob('tests/*.py'))
+    bld(rule = 'qmtest run', cwd = bld.bldnode.abspath(), always = True,
+            target = ['results.qmr'],
+            source = ['onlineclc-test', 'onlineclc-cov', 'QMTest/configuration'] +
+                bld.path.ant_glob('tests/*.cl') +
+                bld.path.ant_glob('tests/*.py'))
+
+class TestContext(BuildContext):
+    cmd = 'test'
+    fun = 'test'
