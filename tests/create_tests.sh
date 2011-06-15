@@ -53,6 +53,30 @@ qmtest create -i cmdparse.long \
     -a exit_code=0 \
     -a arguments="['-D', 'a_very_long_symbol_to_test_that_the_dynamic_allocation_of_the_command_line_works_correctly_even_when_multiple_allocations_are_required=1', '$TESTDIR/empty.cl']" \
     test command_regex.ExecTest
+qmtest create -i cmdparse.double_device \
+    -a program="$PROGRAM" \
+    -a stderr="-b option specified twice" \
+    -a exit_code=2 \
+    -a arguments="['-b', 'foo', '-b', 'bar', '$TESTDIR/empty.cl']" \
+    test command.ExecTest
+qmtest create -i cmdparse.double_output \
+    -a program="$PROGRAM" \
+    -a stderr="-o option specified twice" \
+    -a exit_code=2 \
+    -a arguments="['-o', 'foo', '-o', 'bar', '$TESTDIR/empty.cl']" \
+    test command.ExecTest
+qmtest create -i cmdparse.end_machine \
+    -a program="$PROGRAM" \
+    -a stderr='Source file not specified\n.*' \
+    -a exit_code=2 \
+    -a arguments="['-b', 'foo']" \
+    test command_regex.ExecTest
+qmtest create -i cmdparse.end_output \
+    -a program="$PROGRAM" \
+    -a stderr='Source file not specified\n.*' \
+    -a exit_code=2 \
+    -a arguments="['-o', 'foo']" \
+    test command_regex.ExecTest
 
 qmtest create -i compile.empty \
     -a program="$PROGRAM" \
