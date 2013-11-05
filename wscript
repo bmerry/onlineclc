@@ -1,5 +1,6 @@
 from waflib.Build import BuildContext
 from waflib.Task import TaskBase
+import sys
 
 top = '.'
 out = 'build'
@@ -12,10 +13,14 @@ def options(opt):
 def configure(conf):
     conf.load('compiler_c')
     conf.load('gnu_dirs')
-    conf.env.append_value('LIB_OPENCL', ['OpenCL'])
     if conf.options.cl_headers:
         conf.env.append_value('INCLUDES_OPENCL', [conf.options.cl_headers])
-    conf.check_cc(header_name = 'CL/cl.h', use = 'OPENCL')
+    if sys.platform == 'darwin':
+        conf.env.append_value('FRAMEWORK_OPENCL', ['OpenCL'])
+        conf.check_cc(header_name = 'OpenCL/cl.h', use = 'OPENCL')
+    else:
+        conf.env.append_value('LIB_OPENCL', ['OpenCL'])
+        conf.check_cc(header_name = 'CL/cl.h', use = 'OPENCL')
     conf.check_cc(header_name = 'CUnit/CUnit.h', function = 'CU_initialize_registry', lib = 'cunit',
             uselib_store = 'CUNIT', mandatory = False)
     conf.find_program('qmtest', var = 'QMTEST', mandatory = False)
@@ -24,7 +29,7 @@ def build(bld):
     do_cov = False
     if bld.env['CC_NAME'] == 'gcc':
         if not bld.env['CFLAGS']:
-            bld.env['CFLAGS'] = ['-std=c89', '-Wall', '-Wextra']
+            bld.env['CFLAGS'] = ['-std=c99', '-Wall', '-Wextra']
         bld.env['CFLAGS_OPT'] = ['-O2']
         bld.env['LINKFLAGS_OPT'] = ['-O2', '-s']
 
