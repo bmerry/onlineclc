@@ -254,8 +254,18 @@ static cl_context create_context(cl_device_id device)
 {
     cl_context ctx;
     cl_int status;
+    cl_context_properties props[3];
+    cl_platform_id platform;
 
-    ctx = clCreateContext(0, 1, &device, NULL, NULL, &status);
+    status = clGetDeviceInfo(device, CL_DEVICE_PLATFORM, sizeof(platform), &platform, NULL);
+    if (status != CL_SUCCESS)
+        die_cl(status, 1, "Failed to query platform from device");
+
+    props[0] = CL_CONTEXT_PLATFORM;
+    props[1] = (cl_context_properties) platform;
+    props[2] = 0;
+
+    ctx = clCreateContext(props, 1, &device, NULL, NULL, &status);
     if (status != CL_SUCCESS)
         die_cl(status, 1, "Failed to create OpenCL context");
     return ctx;
@@ -698,7 +708,7 @@ static void test_escape_c_string_backslash(void)
     test_escape_c_string("backslash\\", "backslash\\134");
 }
 
-int main(int argc, const char * const *argv)
+int main(void)
 {
     int ret;
     static CU_TestInfo escape_c_string_tests[] =
